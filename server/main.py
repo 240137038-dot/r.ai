@@ -33,6 +33,10 @@ async def handle_audio(file: UploadFile = File(...)):
         # Agent handles text -> action/result
         result = agent.handle_text(text)
 
+        # If the result requests device confirmation, include pending id/message
+        if isinstance(result, dict) and result.get("device_pending"):
+            return JSONResponse({"transcript": text, "response_text": result.get("message"), "device_pending": True, "pending_id": result.get("pending_id")})
+
         # If agent returns text_to_speak, synthesize audio and return base64
         if "text" in result:
             audio_b64 = synthesize_text(result["text"])
@@ -44,6 +48,21 @@ async def handle_audio(file: UploadFile = File(...)):
             os.remove(tmp_path)
         except Exception:
             pass
+
+@app.post("/api/device/confirm")
+def confirm_device(payload: dict):
+    pending_id = payload.get("pending_id")
+    confirm = payload.get("confirm", False)
+    if not pending_id:
+        raise HTTPException(status_code=400, detail="pending_id required")
+    if not confirm:
+        return {"ok": False, "message": "Cancelled by user."}
+    res = agent.device.confirm_and_execute(int(pending_id))
+    return res
+
+@app.get("/api/device/pending")
+def list_pending():
+    return agent.device.list_pending()
 
 @app.get("/api/todos")
 def list_todos():
