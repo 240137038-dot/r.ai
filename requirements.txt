@@ -4,3 +4,7 @@ openai
 requests
 python-multipart
 aiofiles
+pyautogui
+pycaw
+pillow
+comtypes

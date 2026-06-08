@@ -1,0 +1,9 @@
+{
+  "allowed_scripts": [
+    "scripts/safe/example.sh"
+  ],
+  "allowed_apps": [
+    "C:\\Program Files\\SomeApp\\app.exe",
+    "com.example.myapp"
+  ]
+}
