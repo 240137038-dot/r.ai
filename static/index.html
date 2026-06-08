@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Agentic Voice Assistant - Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #log { white-space: pre-wrap; border: 1px solid #ddd; padding: 10px; height: 200px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Agentic Voice Assistant (Demo)</h1>
+  <p>Press and hold the Record button, speak, then release to send audio to the assistant.</p>
+  <button id="record">Hold to Record</button>
+  <div id="log"></div>
+
+  <script>
+  const recordBtn = document.getElementById('record');
+  const log = document.getElementById('log');
+  let mediaRecorder, chunks = [];
+
+  function appendLog(t) { log.textContent += t + "\n"; log.scrollTop = log.scrollHeight; }
+
+  async function postAudio(blob) {
+    const fd = new FormData();
+    fd.append('file', blob, 'speech.webm');
+    appendLog("Uploading audio...");
+    const res = await fetch('/api/audio', { method: 'POST', body: fd });
+    const j = await res.json();
+    appendLog("Transcript: " + (j.transcript || ''));
+    appendLog("Response: " + (j.response_text || JSON.stringify(j.result)));
+    if (j.audio_base64 && j.audio_base64.length > 0) {
+      const audio = new Audio("data:audio/mpeg;base64," + j.audio_base64);
+      audio.play();
+    } else if (j.response_text) {
+      // fallback browser TTS
+      const ut = new SpeechSynthesisUtterance(j.response_text);
+      speechSynthesis.speak(ut);
+    }
+  }
+
+  recordBtn.addEventListener('mousedown', async () => {
+    chunks = [];
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      await postAudio(blob);
+    };
+    mediaRecorder.start();
+    appendLog("Recording...");
+  });
+
+  recordBtn.addEventListener('mouseup', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      appendLog("Stopped recording.");
+    }
+  });
+
+  recordBtn.addEventListener('touchstart', async (e) => {
+    e.preventDefault();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      await postAudio(blob);
+    };
+    mediaRecorder.start();
+    appendLog("Recording...");
+  }, { passive: false });
+
+  recordBtn.addEventListener('touchend', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      appendLog("Stopped recording.");
+    }
+  });
+  </script>
+</body>
+</html>
